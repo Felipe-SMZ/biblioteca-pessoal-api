@@ -7,13 +7,13 @@ public enum Avaliacao {
     BOM(4),
     EXCELENTE(5);
 
-    private final int valor;
+    private final Integer valor;
 
-    Avaliacao(int valor) {
+    Avaliacao(Integer valor) {
         this.valor = valor;
     }
 
-    public int getValor() {
+    public Integer getValor() {
         return valor;
     }
 }
