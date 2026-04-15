@@ -34,3 +34,6 @@ build/
 
 ### Credentials ###
 src/main/resources/application.properties
+
+### Docs ###
+JWT.md

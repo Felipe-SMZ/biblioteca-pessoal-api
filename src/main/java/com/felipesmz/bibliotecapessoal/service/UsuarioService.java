@@ -14,16 +14,14 @@ import java.util.Objects;
 @Service
 public class UsuarioService {
 
-    //injeção de dependências
     private final UsuarioRepository usuarioRepository;
-    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
+    public UsuarioService(UsuarioRepository usuarioRepository, BCryptPasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    //regras de negocio
     private Usuario buscarOuFalhar(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -42,7 +40,7 @@ public class UsuarioService {
 
     public Usuario salvar(Usuario usuario) {
         validarEmail(null, usuario);
-        String senhaCriptografada = bCryptPasswordEncoder.encode(usuario.getSenha());
+        String senhaCriptografada = passwordEncoder.encode(usuario.getSenha());
         usuario.setSenha(senhaCriptografada);
         usuario.setDataCriacao(LocalDateTime.now(ZoneOffset.UTC));
         return usuarioRepository.save(usuario);
@@ -58,7 +56,7 @@ public class UsuarioService {
         usuarioExistente.setNome(usuarioAtualizado.getNome());
         usuarioExistente.setEmail(usuarioAtualizado.getEmail());
         if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
-            String senhaCriptografada = bCryptPasswordEncoder.encode(usuarioAtualizado.getSenha());
+            String senhaCriptografada = passwordEncoder.encode(usuarioAtualizado.getSenha());
             usuarioExistente.setSenha(senhaCriptografada);
         }
 
