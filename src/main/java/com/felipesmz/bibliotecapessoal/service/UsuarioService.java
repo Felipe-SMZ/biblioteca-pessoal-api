@@ -4,9 +4,11 @@ import com.felipesmz.bibliotecapessoal.model.Usuario;
 import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class UsuarioService {
@@ -19,13 +21,13 @@ public class UsuarioService {
     }
 
     //regras de negocio
-    public Usuario buscarOuFalhar(Long id) {
+    private Usuario buscarOuFalhar(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Usuário " + id + " não encontrado"));
     }
 
-    public void validarEmail(Long id, Usuario usuario) {
+    private void validarEmail(Long id, Usuario usuario) {
         usuarioRepository.findByEmail(usuario.getEmail())
                 .ifPresent(usuarioExistente -> {
                     if (!Objects.equals(usuarioExistente.getId(), id)) {
@@ -33,5 +35,24 @@ public class UsuarioService {
                                 HttpStatus.CONFLICT, "E-mail já cadastrado");
                     }
                 });
+    }
+
+    public Usuario salvar(Usuario usuario) {
+        validarEmail(null, usuario);
+        return usuarioRepository.save(usuario);
+    }
+
+    public Usuario buscarPorId(Long id) {
+        return buscarOuFalhar(id);
+    }
+
+    public Usuario atualizar(Long id, Usuario usuarioAtualizado) {
+        Usuario usuarioExistente = buscarOuFalhar(id);
+        validarEmail(id, usuarioAtualizado);
+        usuarioExistente.setNome(usuarioAtualizado.getNome());
+        usuarioExistente.setEmail(usuarioAtualizado.getEmail());
+        usuarioExistente.setSenha(usuarioAtualizado.getSenha());
+
+        return usuarioRepository.save(usuarioExistente);
     }
 }
