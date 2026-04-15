@@ -14,7 +14,8 @@
     <artifactId>biblioteca-pessoal</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>biblioteca-pessoal-api</name>
-    <description>API REST para gerenciamento de biblioteca pessoal, desenvolvida com Java 21 e Spring Boot.</description>
+    <description>API REST para gerenciamento de biblioteca pessoal, desenvolvida com Java 21 e Spring Boot.
+    </description>
 
     <properties>
         <java.version>21</java.version>
@@ -59,6 +60,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
     </dependencies>
 

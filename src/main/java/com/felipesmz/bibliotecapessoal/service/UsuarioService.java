@@ -3,21 +3,24 @@ package com.felipesmz.bibliotecapessoal.service;
 import com.felipesmz.bibliotecapessoal.model.Usuario;
 import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
-import java.util.Optional;
 
 @Service
 public class UsuarioService {
 
     //injeção de dependências
     private final UsuarioRepository usuarioRepository;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
     //regras de negocio
@@ -39,6 +42,9 @@ public class UsuarioService {
 
     public Usuario salvar(Usuario usuario) {
         validarEmail(null, usuario);
+        String senhaCriptografada = bCryptPasswordEncoder.encode(usuario.getSenha());
+        usuario.setSenha(senhaCriptografada);
+        usuario.setDataCriacao(LocalDateTime.now(ZoneOffset.UTC));
         return usuarioRepository.save(usuario);
     }
 
@@ -51,8 +57,16 @@ public class UsuarioService {
         validarEmail(id, usuarioAtualizado);
         usuarioExistente.setNome(usuarioAtualizado.getNome());
         usuarioExistente.setEmail(usuarioAtualizado.getEmail());
-        usuarioExistente.setSenha(usuarioAtualizado.getSenha());
+        if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
+            String senhaCriptografada = bCryptPasswordEncoder.encode(usuarioAtualizado.getSenha());
+            usuarioExistente.setSenha(senhaCriptografada);
+        }
 
         return usuarioRepository.save(usuarioExistente);
+    }
+
+    public void deletar(Long id) {
+        buscarOuFalhar(id);
+        usuarioRepository.deleteById(id);
     }
 }
