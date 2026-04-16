@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Date;
 
 @Service
 public class JwtService {
@@ -27,9 +28,10 @@ public class JwtService {
 
         return JWT.create()
                 .withSubject(usuario.getEmail())
+                .withClaim("userId", usuario.getId())
                 .withIssuer(issuer)
-                .withIssuedAt(agora)
-                .withExpiresAt(expiracao)
+                .withIssuedAt(Date.from(agora))
+                .withExpiresAt(Date.from(expiracao))
                 .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(secret));
     }
 
