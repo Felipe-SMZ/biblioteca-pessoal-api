@@ -123,4 +123,14 @@ public class LivroController {
 
         return ResponseEntity.ok(LivroMapper.toResponse(livroSalvo));
     }
+
+    @GetMapping("/estatisticas")
+    public ResponseEntity<LivroEstatisticaResponse> estatisticas() {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        LivroEstatisticaResponse estatisticas = livroService.obterStats(usuarioId);
+
+        return ResponseEntity.ok(estatisticas);
+    }
 }

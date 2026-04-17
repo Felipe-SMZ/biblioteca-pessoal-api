@@ -2,6 +2,7 @@ package com.felipesmz.bibliotecapessoal.service;
 
 import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
 import com.felipesmz.bibliotecapessoal.dto.LivroAvaliacaoRequest;
+import com.felipesmz.bibliotecapessoal.dto.LivroEstatisticaResponse;
 import com.felipesmz.bibliotecapessoal.dto.LivroStatusPaginaRequest;
 import com.felipesmz.bibliotecapessoal.model.Livro;
 import com.felipesmz.bibliotecapessoal.model.Usuario;
@@ -141,5 +142,26 @@ public class LivroService {
 
         return livroRepository.save(livroExistente);
 
+    }
+
+    public LivroEstatisticaResponse obterStats(Long usuarioId) {
+
+        Long total = livroRepository.countByUsuarioId(usuarioId);
+
+        Long concluidos = livroRepository.countByUsuarioIdAndStatus(usuarioId, Status.CONCLUIDO);
+        Long lendo = livroRepository.countByUsuarioIdAndStatus(usuarioId, Status.LENDO);
+        Long queroLer = livroRepository.countByUsuarioIdAndStatus(usuarioId, Status.QUERO_LER);
+
+        Double media = livroRepository.mediaAvaliacao(usuarioId);
+        Integer paginas = livroRepository.somaPaginasLidas(usuarioId);
+
+        return new LivroEstatisticaResponse(
+                total,
+                concluidos,
+                lendo,
+                queroLer,
+                media != null ? media : 0.0,
+                paginas != null ? paginas : 0
+        );
     }
 }
