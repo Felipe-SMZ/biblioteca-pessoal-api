@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Service
 public class LivroService {
@@ -32,5 +33,10 @@ public class LivroService {
         livro.setUsuario(usuario);
 
         return livroRepository.save(livro);
+    }
+
+    public List<Livro> todosLivros(Long usuarioId) {
+
+        return livroRepository.findAllByUsuarioId(usuarioId);
     }
 }
