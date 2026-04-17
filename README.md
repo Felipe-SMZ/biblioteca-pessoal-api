@@ -1,196 +1,210 @@
-# Biblioteca Pessoal — API
+# 📚 Biblioteca Pessoal — API REST
 
-API REST para gerenciar uma biblioteca pessoal com autenticação JWT.
-
-Este repositório contém a implementação do desafio descrito em `DESAFIO.md`.
-
-Principais objetivos implementados:
-
-- Cadastro e autenticação de usuários (JWT)
-- Criação e gerenciamento de livros por usuário
-- Regras de negócio básicas aplicadas ao módulo de livros
+API REST para gerenciamento de biblioteca pessoal, desenvolvida com Java 21 e Spring Boot.
 
 ---
 
-## Sumário
+## 🚀 Stack
 
-- Visão geral e stack
-- Como rodar localmente
-- Variáveis de ambiente e configuração
-- Endpoints e exemplos de uso
-- Observações sobre segurança e melhorias recomendadas
-
----
-
-## Stack
-
-- Java 17+
-- Spring Boot 3.x
+- Java 21
+- Spring Boot 4.0.5
 - Spring Web
 - Spring Data JPA
-- Spring Security
+- Spring Security + JWT
 - MySQL
-- Maven (com wrapper `mvnw`)
+- Maven
 
 ---
 
-## Executando localmente
+## ⚙️ Configuração
 
-Pré-requisitos:
+Copie o arquivo de exemplo e preencha com suas credenciais:
 
-- Java 17+
-- MySQL (ou outra fonte compatível configurada em `application.properties`)
-- Maven (opcional: use o wrapper `mvnw.cmd` no Windows)
+```bash
+cp src/main/resources/application-example.properties src/main/resources/application.properties
+```
 
-Passos rápidos (Windows PowerShell):
+Principais propriedades:
 
-```powershell
-# Compila
+| Propriedade | Descrição | Exemplo |
+|-------------|-----------|---------|
+| `spring.datasource.url` | URL do banco | `jdbc:mysql://localhost:3306/biblioteca_db` |
+| `spring.datasource.username` | Usuário do banco | `root` |
+| `spring.datasource.password` | Senha do banco | `root` |
+| `jwt.secret` | Chave HMAC (mín. 32 caracteres) | `minha-chave-super-secreta-aqui` |
+| `jwt.expiration-ms` | Expiração do token em ms | `86400000` (24h) |
+| `jwt.issuer` | Emissor do token | `biblioteca-pessoal-api` |
+
+---
+
+## ▶️ Como rodar localmente
+
+**Pré-requisitos:**
+- Java 21+
+- MySQL rodando localmente
+- Banco `biblioteca_db` criado
+
+**Passos:**
+
+```bash
+# Windows
 .\mvnw.cmd clean package -DskipTests
-
-# Executa a aplicação
 .\mvnw.cmd spring-boot:run
+
+# Linux / macOS
+./mvnw clean package -DskipTests
+./mvnw spring-boot:run
 ```
 
-A aplicação sobe por padrão em: http://localhost:8080
+A aplicação sobe em: `http://localhost:8080`
 
-Se preferir executar o JAR gerado:
+Ou execute o JAR diretamente:
 
-```powershell
-java -jar target\biblioteca-pessoal-0.0.1-SNAPSHOT.jar
+```bash
+java -jar target/biblioteca-pessoal-0.0.1-SNAPSHOT.jar
 ```
 
 ---
 
-## Configuração (variáveis / application.properties)
+## 🔗 Endpoints
 
-Use `src/main/resources/application-example.properties` como referência. As principais propriedades:
+### Públicos
 
-- spring.datasource.url (ex.: jdbc:mysql://localhost:3306/biblioteca_db)
-- spring.datasource.username
-- spring.datasource.password
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/usuarios` | Cadastrar usuário |
+| `POST` | `/auth/login` | Login — retorna token JWT |
 
-- jwt.secret (chave HMAC — mínimo 32 caracteres)
-- jwt.expiration-ms (tempo em ms, ex: 86400000 = 24h)
-- jwt.issuer
+### Protegidos
 
-Você pode usar variáveis de ambiente para sobrescrever os valores padrão (veja `application-example.properties`).
+> Todas as rotas abaixo exigem o header `Authorization: Bearer <token>`
 
----
-
-## Endpoints principais
-
-Autenticação / Usuário (públicos):
-
-- POST /usuarios — cadastrar usuário
-- POST /auth/login — login, retorna token JWT
-
-Regras: as demais rotas exigem Header `Authorization: Bearer <token>`
-
-Livros (protegido):
-
-- GET /livros — listar livros do usuário autenticado
-- POST /livros — criar novo livro (pertence ao usuário autenticado)
-- GET /livros/{id} — obter livro (somente se pertencer ao usuário)
-- PUT /livros/{id} — atualizar dados do livro (somente se pertencer ao usuário)
-- PATCH /livros/{id}/status — atualizar páginas lidas / status
-- PATCH /livros/{id}/avaliacao — avaliar livro concluído
-- DELETE /livros/{id} — remover livro (somente se pertencer ao usuário)
-- GET /livros/estatisticas — estatísticas do usuário
-
-Consulte os DTOs em `src/main/java/com/felipesmz/bibliotecapessoal/dto` para os formatos esperados.
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/livros` | Listar livros do usuário autenticado |
+| `POST` | `/livros` | Adicionar livro à biblioteca |
+| `GET` | `/livros/{id}` | Buscar livro por ID |
+| `PUT` | `/livros/{id}` | Atualizar dados do livro |
+| `PATCH` | `/livros/{id}/status` | Atualizar status e páginas lidas |
+| `PATCH` | `/livros/{id}/avaliacao` | Avaliar livro concluído |
+| `DELETE` | `/livros/{id}` | Remover livro |
+| `GET` | `/livros/estatisticas` | Estatísticas da biblioteca |
 
 ---
 
-## Exemplos (curl)
+## 📦 Exemplos de uso
 
-# 1) Cadastrar usuário
+### Cadastrar usuário
 
 ```bash
 curl -X POST http://localhost:8080/usuarios \
   -H "Content-Type: application/json" \
-  -d '{"nome":"Fulano","email":"fulano@example.com","senha":"minhaSenha"}'
+  -d '{"nome":"Felipe","email":"felipe@example.com","senha":"minhasenha"}'
 ```
 
-# 2) Login (retorna token)
+### Login
 
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"fulano@example.com","senha":"minhaSenha"}'
+  -d '{"email":"felipe@example.com","senha":"minhasenha"}'
 ```
 
-# 3) Usar token nas rotas protegidas
+### Adicionar livro
 
 ```bash
-curl -H "Authorization: Bearer SEU_TOKEN_AQUI" http://localhost:8080/livros
+curl -X POST http://localhost:8080/livros \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "O Senhor dos Anéis",
+    "autor": "J.R.R. Tolkien",
+    "genero": "Fantasia",
+    "totalPaginas": 1178
+  }'
 ```
 
-Exemplos de payloads para livros (ver DTOs para validações):
+### Atualizar status
 
-POST /livros
+```bash
+curl -X PATCH http://localhost:8080/livros/1/status \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"paginasLidas": 300}'
+```
+
+### Avaliar livro
+
+```bash
+curl -X PATCH http://localhost:8080/livros/1/avaliacao \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"avaliacao": 5}'
+```
+
+### Estatísticas
+
+```bash
+curl -H "Authorization: Bearer SEU_TOKEN" \
+  http://localhost:8080/livros/estatisticas
+```
+
+Resposta:
 
 ```json
 {
-  "titulo": "O Senhor dos Anéis",
-  "autor": "J.R.R. Tolkien",
-  "genero": "Fantasia",
-  "totalPaginas": 1178
-}
-```
-
-PATCH /livros/{id}/status
-
-```json
-{
-  "paginasLidas": 200
-}
-```
-
-PATCH /livros/{id}/avaliacao
-
-```json
-{
-  "avaliacao": 5
+  "totalLivros": 10,
+  "concluidos": 4,
+  "lendo": 2,
+  "quereLer": 4,
+  "mediaAvaliacao": 4.2,
+  "totalPaginasLidas": 1340
 }
 ```
 
 ---
 
-## Segurança e observações importantes (análise)
+## 📐 Regras de negócio
 
-Resumo das verificações relevantes feitas no código:
-
-- O `LivroController` obtém o email do usuário autenticado via `SecurityContextHolder` e resolve o `usuarioId` usando `UsuarioRepository.findByEmail(email)`.
-- Todos os métodos do `LivroService` usam queries que filtram por `usuarioId` (ex.: `findByIdAndUsuarioId`, `findAllByUsuarioId`, `countByUsuarioIdAndStatus`). Isso impede que um usuário acesse livros de outro, desde que `usuarioId` passado seja o do usuário autenticado.
-
-Potenciais pontos de melhoria/risco identificados:
-
-1. Tratamento de exceções inconsistentes: algumas situações lançam `ResponseStatusException` (boas — retornam 4xx), outras usam `RuntimeException` com mensagens como "Livro não encontrado" ou "Usuário não encontrado". Isso causa 500 Internal Server Error. Recomenda-se padronizar para lançar `ResponseStatusException(HttpStatus.NOT_FOUND, "...")` ou criar exceções customizadas mapeadas pelo `@ControllerAdvice`.
-
-2. `getUsuarioIdAutenticado()` assume que `SecurityContextHolder.getContext().getAuthentication()` e o `principal` não são nulos e que o principal é `UserDetails`. Em geral isso é verdade para requests autenticadas, mas uma verificação defensiva e mensagens claras (`401 Unauthorized`) melhoram a robustez.
-
-3. O `JwtAuthFilter` registra logs informativos. Evite logar o token em texto claro em produção.
-
-4. Validações de regras de negócio estão implementadas em grande parte (ex.: páginas lidas não podem exceder total; avaliação só para concluídos). Rever mensagens e códigos HTTP para consistência.
-
-5. Recomendado remover exposição acidental de dados sensíveis em logs (senhas não são expostas nas respostas — DTOs de saída não incluem senha).
+- Cada usuário acessa apenas seus próprios livros
+- `paginasLidas` não pode ser maior que `totalPaginas`
+- O status só pode avançar — não é permitido voltar (ex: `CONCLUIDO → LENDO` é inválido)
+- Avaliação só pode ser atribuída a livros com status `CONCLUIDO`
+- Ao concluir um livro, `paginasLidas` é automaticamente igualado a `totalPaginas`
+- A senha nunca é retornada em nenhum endpoint
 
 ---
 
-## Melhorias sugeridas (próximos passos)
+## 🗂️ Estrutura do projeto
 
-- Padronizar exceções: criar `NotFoundException`, `AccessDeniedException`, `BadRequestException` e mapear no `GlobalExceptionHandler` para retornar JSON consistente.
-- Melhorar `getUsuarioIdAutenticado()` para lançar `ResponseStatusException(HttpStatus.UNAUTHORIZED)` quando o principal não estiver presente.
-- Adicionar testes unitários para `LivroService` cobrindo regras de negócio (paginas lidas, status, avaliação).
-- Adicionar testes de integração (com banco H2 ou Testcontainers) para endpoints críticos.
-- Considerar usar claim `userId` do token (já presente) para evitar uma consulta adicional ao banco ao resolver o usuário autenticado.
+```
+src/
+└── main/
+    └── java/
+        └── com/felipesmz/bibliotecapessoal/
+            ├── controller/
+            ├── service/
+            ├── repository/
+            ├── model/
+            ├── dto/
+            ├── exception/
+            └── config/
+```
 
 ---
 
-## Arquivos úteis
+## 🔮 Melhorias futuras
 
-- `DESAFIO.md` — escopo do desafio
+- Padronização completa das respostas de erro com `@ControllerAdvice`
+- Testes unitários para as regras de negócio no `LivroService`
+- Testes de integração para os endpoints principais
+- Paginação na listagem de livros
+- Filtros por status, gênero e autor
+- Documentação automática com Swagger / OpenAPI
+
+---
+
+## 📄 Arquivos úteis
+
+- `DESAFIO.md` — escopo e requisitos do desafio
 - `src/main/resources/application-example.properties` — exemplo de configuração
-
----
