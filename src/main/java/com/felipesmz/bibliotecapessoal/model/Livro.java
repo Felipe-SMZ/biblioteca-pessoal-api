@@ -27,7 +27,10 @@ public class Livro {
 
     private Integer avaliacao;
 
+    @Column(updatable = false)
     private LocalDateTime dataCriacao;
+
+    private LocalDateTime dataAtualizacao;
 
     @ManyToOne
     @JoinColumn(name = "usuario_id")
@@ -36,7 +39,18 @@ public class Livro {
     public Livro() {
     }
 
-    public Livro(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, Status status, Integer avaliacao, LocalDateTime dataCriacao, Usuario usuario) {
+    @PrePersist
+    public void criarData() {
+        this.dataCriacao = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void atualizarData() {
+        this.dataAtualizacao = LocalDateTime.now();
+    }
+
+
+    public Livro(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, Status status, Integer avaliacao, LocalDateTime dataCriacao, LocalDateTime dataAtualizacao, Usuario usuario) {
         this.id = id;
         this.titulo = titulo;
         this.autor = autor;
@@ -46,7 +60,9 @@ public class Livro {
         this.status = status;
         this.avaliacao = avaliacao;
         this.dataCriacao = dataCriacao;
+        this.dataAtualizacao = dataAtualizacao;
         this.usuario = usuario;
+
     }
 
     public Long getId() {
@@ -110,6 +126,9 @@ public class Livro {
     }
 
     public void setAvaliacao(Integer avaliacao) {
+        if (this.status != Status.CONCLUIDO && avaliacao != null) {
+            throw new IllegalStateException("Só é possível avaliar livros concluídos");
+        }
         this.avaliacao = avaliacao;
     }
 
@@ -127,5 +146,13 @@ public class Livro {
 
     public void setUsuario(Usuario usuario) {
         this.usuario = usuario;
+    }
+
+    public LocalDateTime getDataAtualizacao() {
+        return dataAtualizacao;
+    }
+
+    public void setDataAtualizacao(LocalDateTime dataAtualizacao) {
+        this.dataAtualizacao = dataAtualizacao;
     }
 }

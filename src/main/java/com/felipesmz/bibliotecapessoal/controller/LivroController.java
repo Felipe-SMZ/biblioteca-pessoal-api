@@ -1,5 +1,6 @@
 package com.felipesmz.bibliotecapessoal.controller;
 
+import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
 import com.felipesmz.bibliotecapessoal.dto.LivroCadastroRequest;
 import com.felipesmz.bibliotecapessoal.dto.LivroResponse;
 import com.felipesmz.bibliotecapessoal.mapper.LivroMapper;
@@ -86,6 +87,18 @@ public class LivroController {
         livroService.deletarLivro(id, usuarioId);
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<LivroResponse> atualizarLivro(
+            @PathVariable Long id,
+            @Valid @RequestBody LivroAtualizarRequest livroRequest) {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        Livro livroSalvo = livroService.atualizarLivro(id, usuarioId, livroRequest);
+
+        return ResponseEntity.ok(LivroMapper.toResponse(livroSalvo));
     }
 
 }

@@ -14,8 +14,9 @@ public class LivroResponse {
     private String status;
     private Integer avaliacao;
     private LocalDateTime dataCriacao;
+    private LocalDateTime dataAtualizacao;
 
-    public LivroResponse(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, String status, Integer avaliacao, LocalDateTime dataCriacao) {
+    public LivroResponse(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, String status, Integer avaliacao, LocalDateTime dataCriacao, LocalDateTime dataAtualizacao) {
         this.id = id;
         this.titulo = titulo;
         this.autor = autor;
@@ -25,8 +26,9 @@ public class LivroResponse {
         this.status = status;
         this.avaliacao = avaliacao;
         this.dataCriacao = dataCriacao;
+        this.dataAtualizacao = dataAtualizacao;
     }
-    
+
     public Long getId() {
         return id;
     }
@@ -61,5 +63,9 @@ public class LivroResponse {
 
     public LocalDateTime getDataCriacao() {
         return dataCriacao;
+    }
+
+    public LocalDateTime getDataAtualizacao() {
+        return dataAtualizacao;
     }
 }

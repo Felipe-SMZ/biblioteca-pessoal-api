@@ -1,7 +1,7 @@
 package com.felipesmz.bibliotecapessoal.mapper;
 
+import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
 import com.felipesmz.bibliotecapessoal.dto.LivroCadastroRequest;
-import com.felipesmz.bibliotecapessoal.dto.LivroRequest;
 import com.felipesmz.bibliotecapessoal.dto.LivroResponse;
 import com.felipesmz.bibliotecapessoal.model.Livro;
 import jakarta.validation.Valid;
@@ -10,18 +10,6 @@ public class LivroMapper {
 
     public LivroMapper() {
     }
-
-//    public static Livro toEntity(LivroRequest dto) {
-//        Livro livro = new Livro();
-//        livro.setTitulo(dto.getTitulo());
-//        livro.setAutor(dto.getAutor());
-//        livro.setGenero(dto.getGenero());
-//        livro.setTotalPaginas(dto.getTotalPaginas());
-//        livro.setPaginasLidas(dto.getPaginasLidas());
-//        livro.setStatus(dto.getStatus());
-//        livro.setAvaliacao(dto.getAvaliacao());
-//        return livro;
-//    }
 
     public static LivroResponse toResponse(Livro livro) {
         return new LivroResponse(
@@ -33,7 +21,8 @@ public class LivroMapper {
                 livro.getPaginasLidas(),
                 livro.getStatus().name(),
                 livro.getAvaliacao(),
-                livro.getDataCriacao()
+                livro.getDataCriacao(),
+                livro.getDataAtualizacao()
         );
     }
 
@@ -45,6 +34,16 @@ public class LivroMapper {
         livro.setTotalPaginas(dto.getTotalPaginas());
         livro.setStatus(dto.getStatus());
         return livro;
+    }
+
+    public static Livro toEntity(@Valid LivroAtualizarRequest dto) {
+        Livro livroAtualizado = new Livro();
+        livroAtualizado.setTitulo(dto.getTitulo());
+        livroAtualizado.setAutor(dto.getAutor());
+        livroAtualizado.setGenero(dto.getGenero());
+        livroAtualizado.setTotalPaginas(dto.getTotalPaginas());
+
+        return livroAtualizado;
     }
 }
 
