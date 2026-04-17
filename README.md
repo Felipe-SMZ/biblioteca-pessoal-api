@@ -194,5 +194,3 @@ Potenciais pontos de melhoria/risco identificados:
 - `src/main/resources/application-example.properties` — exemplo de configuração
 
 ---
-
-Se quiser, posso abrir um PR sugerindo mudanças pequenas e seguras (ex.: padronizar exceções e ajustar `getUsuarioIdAutenticado`) — diga quais pontos você prefere que eu altere automaticamente.
