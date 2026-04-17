@@ -1,8 +1,6 @@
 package com.felipesmz.bibliotecapessoal.mapper;
 
-import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
-import com.felipesmz.bibliotecapessoal.dto.LivroCadastroRequest;
-import com.felipesmz.bibliotecapessoal.dto.LivroResponse;
+import com.felipesmz.bibliotecapessoal.dto.*;
 import com.felipesmz.bibliotecapessoal.model.Livro;
 import jakarta.validation.Valid;
 
@@ -42,6 +40,20 @@ public class LivroMapper {
         livroAtualizado.setAutor(dto.getAutor());
         livroAtualizado.setGenero(dto.getGenero());
         livroAtualizado.setTotalPaginas(dto.getTotalPaginas());
+
+        return livroAtualizado;
+    }
+
+    public static Livro toEntity(@Valid LivroStatusPaginaRequest dto) {
+        Livro livroAtualizado = new Livro();
+        livroAtualizado.setPaginasLidas(dto.getPaginasLidas());
+
+        return livroAtualizado;
+    }
+
+    public static Livro toEntity(@Valid LivroAvaliacaoRequest dto) {
+        Livro livroAtualizado = new Livro();
+        livroAtualizado.setAvaliacao(dto.getAvaliacao());
 
         return livroAtualizado;
     }

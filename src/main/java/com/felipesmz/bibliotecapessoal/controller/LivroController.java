@@ -1,8 +1,6 @@
 package com.felipesmz.bibliotecapessoal.controller;
 
-import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
-import com.felipesmz.bibliotecapessoal.dto.LivroCadastroRequest;
-import com.felipesmz.bibliotecapessoal.dto.LivroResponse;
+import com.felipesmz.bibliotecapessoal.dto.*;
 import com.felipesmz.bibliotecapessoal.mapper.LivroMapper;
 import com.felipesmz.bibliotecapessoal.model.Livro;
 import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
@@ -101,4 +99,28 @@ public class LivroController {
         return ResponseEntity.ok(LivroMapper.toResponse(livroSalvo));
     }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<LivroResponse> atualizarStatusPagina(
+            @PathVariable Long id,
+            @Valid @RequestBody LivroStatusPaginaRequest livroRequest) {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        Livro livroSalvo = livroService.atualizarPaginasLidas(id, usuarioId, livroRequest);
+
+        return ResponseEntity.ok(LivroMapper.toResponse(livroSalvo));
+    }
+
+
+    @PatchMapping("/{id}/avaliacao")
+    public ResponseEntity<LivroResponse> atualizarAvaliacao(
+            @PathVariable Long id,
+            @Valid @RequestBody LivroAvaliacaoRequest livroRequest) {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        Livro livroSalvo = livroService.avaliarLivro(id, usuarioId, livroRequest);
+
+        return ResponseEntity.ok(LivroMapper.toResponse(livroSalvo));
+    }
 }

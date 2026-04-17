@@ -1,12 +1,16 @@
 package com.felipesmz.bibliotecapessoal.service;
 
 import com.felipesmz.bibliotecapessoal.dto.LivroAtualizarRequest;
+import com.felipesmz.bibliotecapessoal.dto.LivroAvaliacaoRequest;
+import com.felipesmz.bibliotecapessoal.dto.LivroStatusPaginaRequest;
 import com.felipesmz.bibliotecapessoal.model.Livro;
 import com.felipesmz.bibliotecapessoal.model.Usuario;
 import com.felipesmz.bibliotecapessoal.model.enums.Status;
 import com.felipesmz.bibliotecapessoal.repository.LivroRepository;
 import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -84,5 +88,58 @@ public class LivroService {
         }
 
         return livroRepository.save(livroExistente);
+    }
+
+    public Livro atualizarPaginasLidas(Long id, Long usuarioId, LivroStatusPaginaRequest dto) {
+
+        Livro livroExistente = livroRepository.findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() -> new RuntimeException("Livro não encontrado"));
+
+        Integer paginasLidas = dto.getPaginasLidas();
+
+        if (paginasLidas < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Páginas lidas não pode ser negativa");
+        }
+
+        if (paginasLidas > livroExistente.getTotalPaginas()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Páginas lidas não pode ser maior que o total");
+        }
+
+        livroExistente.setPaginasLidas(paginasLidas);
+
+        if (paginasLidas == 0) {
+            livroExistente.setStatus(Status.QUERO_LER);
+
+        } else if (paginasLidas.equals(livroExistente.getTotalPaginas())) {
+            livroExistente.setStatus(Status.CONCLUIDO);
+
+        } else {
+            livroExistente.setStatus(Status.LENDO);
+        }
+
+        return livroRepository.save(livroExistente);
+    }
+
+    public Livro avaliarLivro(Long id, Long usuarioId, LivroAvaliacaoRequest dto) {
+
+        Livro livroExistente = livroRepository.findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() -> new RuntimeException("Livro não encontrado"));
+
+        if (livroExistente.getStatus() != Status.CONCLUIDO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Só é possível avaliar livros concluídos");
+        }
+
+        if (livroExistente.getAvaliacao() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Livro já foi avaliado");
+        }
+
+        livroExistente.setAvaliacao(dto.getAvaliacao());
+
+        return livroRepository.save(livroExistente);
+
     }
 }

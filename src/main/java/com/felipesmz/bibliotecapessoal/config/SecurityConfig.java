@@ -3,6 +3,7 @@ package com.felipesmz.bibliotecapessoal.config;
 import com.felipesmz.bibliotecapessoal.security.CustomUserDetailsService;
 import com.felipesmz.bibliotecapessoal.security.JwtAuthFilter;
 import com.felipesmz.bibliotecapessoal.security.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -59,8 +60,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) ->
-                        response.sendError(401, "Nao autenticado")))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (response.getStatus() == HttpServletResponse.SC_OK) {
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Nao autenticado");
+                            }
+                        })
+                )
                 .addFilterBefore(jwtAuthFilter(), UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(httpBasic -> httpBasic.disable());
 

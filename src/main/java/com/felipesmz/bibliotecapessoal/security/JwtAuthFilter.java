@@ -6,6 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,6 +18,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
@@ -30,15 +34,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         String method = request.getMethod();
 
-        // Login e cadastro sao rotas publicas e nao exigem JWT.
-        if (path.equals("/auth/login") && method.equals("POST")) {
-            return true;
-        }
-        if (path.equals("/usuarios") && method.equals("POST")) {
-            return true;
-        }
-
-        return false;
+        // Rotas públicas
+        return (path.equals("/auth/login") && method.equals("POST")) ||
+                (path.equals("/usuarios") && method.equals("POST"));
     }
 
     @Override
@@ -50,17 +48,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
 
+        log.info("🔐 Iniciando filtro JWT para: {} {}", request.getMethod(), request.getRequestURI());
+
+        // 🔹 Sem token → segue fluxo normal
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
+            log.warn("⚠️ Header Authorization ausente ou inválido");
             filterChain.doFilter(request, response);
             return;
         }
 
+        String token = header.substring(7);
+
         try {
-            String token = header.substring(7);
+            log.info("📌 Token recebido");
+
             String email = jwtService.validarToken(token).getSubject();
+            log.info("📧 Email extraído do token: {}", email);
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
+
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                log.info("👤 Usuário carregado: {}", userDetails.getUsername());
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -70,20 +78,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                log.info("✅ Usuário autenticado com sucesso");
             }
 
         } catch (JWTVerificationException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Token inválido ou expirado\"}");
-            return;
+            log.error("❌ Token inválido ou expirado: {}", e.getMessage());
+
         } catch (RuntimeException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Token valido, mas usuario nao encontrado\"}");
-            return;
+            log.error("❌ Erro ao autenticar usuário: {}", e.getMessage());
         }
 
+        // 🔥 Sempre continua o fluxo
         filterChain.doFilter(request, response);
     }
 }

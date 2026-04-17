@@ -126,9 +126,6 @@ public class Livro {
     }
 
     public void setAvaliacao(Integer avaliacao) {
-        if (this.status != Status.CONCLUIDO && avaliacao != null) {
-            throw new IllegalStateException("Só é possível avaliar livros concluídos");
-        }
         this.avaliacao = avaliacao;
     }
 
