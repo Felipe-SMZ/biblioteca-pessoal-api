@@ -24,8 +24,10 @@ public class JwtService {
 
     public String gerarToken(Usuario usuario) {
         Instant agora = Instant.now();
+        // Tempo de expiração configurado em jwt.expiration-ms.
         Instant expiracao = agora.plusMillis(expirationMs);
 
+        // Subject identifica o usuario por email; userId facilita correlacao no backend.
         return JWT.create()
                 .withSubject(usuario.getEmail())
                 .withClaim("userId", usuario.getId())

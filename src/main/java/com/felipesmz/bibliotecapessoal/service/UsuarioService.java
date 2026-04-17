@@ -29,6 +29,7 @@ public class UsuarioService {
     }
 
     private void validarEmail(Long id, Usuario usuario) {
+        // Em update, permite manter o proprio email; bloqueia email ja usado por outro usuario.
         usuarioRepository.findByEmail(usuario.getEmail())
                 .ifPresent(usuarioExistente -> {
                     if (!Objects.equals(usuarioExistente.getId(), id)) {
@@ -55,6 +56,7 @@ public class UsuarioService {
         validarEmail(id, usuarioAtualizado);
         usuarioExistente.setNome(usuarioAtualizado.getNome());
         usuarioExistente.setEmail(usuarioAtualizado.getEmail());
+        // So troca a senha quando ela vier preenchida no request.
         if (usuarioAtualizado.getSenha() != null && !usuarioAtualizado.getSenha().isBlank()) {
             String senhaCriptografada = passwordEncoder.encode(usuarioAtualizado.getSenha());
             usuarioExistente.setSenha(senhaCriptografada);
