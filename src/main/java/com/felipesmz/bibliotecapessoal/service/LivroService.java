@@ -39,4 +39,18 @@ public class LivroService {
 
         return livroRepository.findAllByUsuarioId(usuarioId);
     }
+
+    public Livro buscaLivro(Long id, Long usuarioId) {
+
+        return livroRepository.findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() -> new RuntimeException("Livro não encontrado"));
+    }
+
+    public void deletarLivro(Long id, Long usuarioId) {
+        if (livroRepository.findByIdAndUsuarioId(id, usuarioId).isPresent()) {
+            livroRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Livro não encontrado");
+        }
+    }
 }

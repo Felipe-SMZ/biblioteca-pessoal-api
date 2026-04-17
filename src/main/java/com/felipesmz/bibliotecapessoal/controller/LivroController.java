@@ -68,4 +68,24 @@ public class LivroController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
 
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<LivroResponse> buscarLivro(@PathVariable Long id) {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+        Livro livro = livroService.buscaLivro(id, usuarioId);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(LivroMapper.toResponse(livro));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletarLivro(@PathVariable Long id) {
+
+        Long usuarioId = getUsuarioIdAutenticado();
+        livroService.deletarLivro(id, usuarioId);
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
 }
