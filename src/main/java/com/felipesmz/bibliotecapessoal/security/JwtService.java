@@ -47,4 +47,8 @@ public class JwtService {
     public long getExpirationMs() {
         return expirationMs;
     }
+
+    public Long getUserIdFromToken(String token) {
+        return validarToken(token).getClaim("userId").asLong();
+    }
 }
