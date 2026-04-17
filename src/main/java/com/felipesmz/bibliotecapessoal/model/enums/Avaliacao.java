@@ -16,4 +16,12 @@ public enum Avaliacao {
     public Integer getValor() {
         return valor;
     }
+
+    public static Avaliacao fromValor(Integer valor) {
+        if (valor == null) return null;
+        for (Avaliacao a : Avaliacao.values()) {
+            if (a.getValor().equals(valor)) return a;
+        }
+        throw new IllegalArgumentException("Valor de avaliação inválido: " + valor);
+    }
 }

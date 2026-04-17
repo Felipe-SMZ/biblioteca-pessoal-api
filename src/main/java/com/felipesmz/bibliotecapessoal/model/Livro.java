@@ -1,6 +1,5 @@
 package com.felipesmz.bibliotecapessoal.model;
 
-import com.felipesmz.bibliotecapessoal.model.enums.Avaliacao;
 import com.felipesmz.bibliotecapessoal.model.enums.Status;
 import jakarta.persistence.*;
 
@@ -26,8 +25,7 @@ public class Livro {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    @Enumerated(EnumType.ORDINAL)
-    private Avaliacao avaliacao;
+    private Integer avaliacao;
 
     private LocalDateTime dataCriacao;
 
@@ -38,7 +36,7 @@ public class Livro {
     public Livro() {
     }
 
-    public Livro(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, Status status, Avaliacao avaliacao, LocalDateTime dataCriacao, Usuario usuario) {
+    public Livro(Long id, String titulo, String autor, String genero, Integer totalPaginas, Integer paginasLidas, Status status, Integer avaliacao, LocalDateTime dataCriacao, Usuario usuario) {
         this.id = id;
         this.titulo = titulo;
         this.autor = autor;
@@ -107,11 +105,11 @@ public class Livro {
         this.status = status;
     }
 
-    public Avaliacao getAvaliacao() {
+    public Integer getAvaliacao() {
         return avaliacao;
     }
 
-    public void setAvaliacao(Avaliacao avaliacao) {
+    public void setAvaliacao(Integer avaliacao) {
         this.avaliacao = avaliacao;
     }
 
