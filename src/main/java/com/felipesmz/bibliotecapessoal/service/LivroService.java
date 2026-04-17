@@ -96,7 +96,14 @@ public class LivroService {
         Livro livroExistente = livroRepository.findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(() -> new RuntimeException("Livro não encontrado"));
 
+        Integer paginasLidasAtual = livroExistente.getPaginasLidas();
+
         Integer paginasLidas = dto.getPaginasLidas();
+
+        if (paginasLidasAtual > paginasLidas) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Você não pode diminuir o número de páginas lidas. O valor atual é " + paginasLidasAtual);
+        }
 
         if (paginasLidas < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
