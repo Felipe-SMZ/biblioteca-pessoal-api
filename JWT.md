@@ -1,64 +1,28 @@
-# Manual simples de implementação de JWT no projeto Biblioteca Pessoal
+# Manual JWT - Biblioteca Pessoal
 
-> **Objetivo deste documento:** servir como uma anotação prática para eu lembrar, no futuro, como implementar autenticação com JWT no projeto.
->
-> **Ideia principal:** o usuário faz login com email e senha, recebe um token JWT e passa esse token nas próximas requisições.
+Este documento e um guia de consulta rapida para relembrar como o JWT foi implementado neste projeto.
 
----
+## Objetivo
 
-## 1. O que já existe no projeto
+Implementar autenticacao stateless com JWT para:
 
-Pelo código atual, já tenho:
+- permitir login por email e senha
+- gerar token no `POST /auth/login`
+- exigir token nas rotas protegidas
+- manter cada requisicao sem sessao no servidor
 
-- `Usuario` em `com.felipesmz.bibliotecapessoal.model.Usuario`
-- `Livro` em `com.felipesmz.bibliotecapessoal.model.Livro`
-- `UsuarioRepository` com `findByEmail(String email)`
-- `UsuarioService` com criptografia de senha usando BCrypt
-- `SecurityConfig` ainda liberando todas as rotas
-- dependência de JWT no `pom.xml`
+## Estado atual do projeto
 
-Ou seja: a base já está pronta. Falta montar a parte de login e a validação do token.
+Hoje o projeto ja possui:
 
----
+- `AuthController` com `POST /auth/login`
+- `AuthService` com autenticacao via `AuthenticationManager`
+- `JwtService` para gerar e validar token
+- `JwtAuthFilter` para ler `Authorization: Bearer ...`
+- `CustomUserDetailsService` para buscar usuario por email
+- `SecurityConfig` stateless com rotas publicas e protegidas
 
-## 2. O que o JWT vai resolver
-
-JWT vai servir para:
-
-1. saber se o usuário está autenticado;
-2. evitar que ele tenha que mandar email e senha em toda requisição;
-3. identificar quem é o dono dos dados;
-4. proteger rotas de `usuario` e `livro`.
-
-A lógica vai ser assim:
-
-- o usuário faz `POST /auth/login`;
-- a API valida email e senha;
-- se estiver certo, gera um token;
-- nas próximas requisições, o cliente envia:
-
-```http
-Authorization: Bearer SEU_TOKEN_AQUI
-```
-
----
-
-## 3. Regras simples que eu preciso seguir
-
-Antes de codar, preciso lembrar destas regras:
-
-- o token precisa expirar;
-- o segredo do JWT não deve ficar hardcoded;
-- o endpoint de login deve ser público;
-- as outras rotas devem exigir autenticação;
-- nunca retornar senha na resposta;
-- para dados privados, buscar sempre pelo usuário autenticado.
-
----
-
-## 4. Estrutura de pacotes que eu vou criar
-
-Vou manter a estrutura simples, sem inventar muita coisa.
+## Estrutura de pacotes (JWT)
 
 ```text
 com.felipesmz.bibliotecapessoal
@@ -74,561 +38,110 @@ com.felipesmz.bibliotecapessoal
 │   ├── JwtService.java
 │   ├── JwtAuthFilter.java
 │   └── CustomUserDetailsService.java
-├── config
-│   └── SecurityConfig.java
-└── (ajustes nos pacotes que já existem)
+└── config
+    └── SecurityConfig.java
 ```
 
-### Por que essa estrutura?
+## Fluxo JWT (resumo mental)
 
-Porque fica fácil entender:
+1. Cliente chama `POST /auth/login` com email e senha
+2. `AuthService` autentica com `AuthenticationManager`
+3. Se valido, `JwtService` gera token
+4. Cliente envia token no header `Authorization`
+5. `JwtAuthFilter` valida token e coloca usuario no contexto de seguranca
+6. Rotas protegidas executam normalmente
 
-- `controller` recebe a requisição;
-- `service` faz a regra de negócio;
-- `dto` guarda os dados da entrada e da saída;
-- `security` guarda tudo que é autenticação.
+Se token for invalido, expirado ou usuario nao existir mais, retorna `401`.
 
----
+## Passo a passo de implementacao
 
-## 5. Passo a passo da implementação
+## 1) DTOs de login
 
-### Passo 1 — criar os DTOs do login
+`LoginRequest` deve validar entrada:
 
-Esses DTOs são as classes que recebem e devolvem dados na API.
+- `@NotBlank` para email e senha
+- `@Email` para formato do email
 
-#### `LoginRequest`
+`LoginResponse` retorna:
 
-```java
-package com.felipesmz.bibliotecapessoal.auth.dto;
+- `token`
+- `tipo` (`Bearer`)
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+## 2) Servico de token (`JwtService`)
 
-public class LoginRequest {
+Responsavel por:
 
-    @NotBlank(message = "Email é obrigatório")
-    @Email(message = "Email inválido")
-    private String email;
+- gerar token (`gerarToken`)
+- validar token (`validarToken`)
 
-    @NotBlank(message = "Senha é obrigatória")
-    private String senha;
+Claims usadas no projeto:
 
-    public LoginRequest() {
-    }
+- `subject`: email do usuario
+- `userId`: id do usuario
+- `issuer`: valor configurado em `jwt.issuer`
+- expiracao: `jwt.expiration-ms`
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
-    }
-}
-```
-
-#### `LoginResponse`
-
-```java
-package com.felipesmz.bibliotecapessoal.auth.dto;
-
-public class LoginResponse {
-
-    private String token;
-    private String tipo;
-
-    public LoginResponse(String token, String tipo) {
-        this.token = token;
-        this.tipo = tipo;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public String getTipo() {
-        return tipo;
-    }
-}
-```
-
-**Ideia importante:** a resposta do login só devolve token e tipo. Não devolve senha nem dados sensíveis.
-
----
-
-### Passo 2 — criar o serviço do JWT
-
-Esse serviço vai cuidar de gerar e validar token.
-
-#### `JwtService`
-
-```java
-package com.felipesmz.bibliotecapessoal.security;
-
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.interfaces.DecodedJWT;
-import com.felipesmz.bibliotecapessoal.model.Usuario;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.Date;
-
-@Service
-public class JwtService {
-
-    @Value("${jwt.secret}")
-    private String secret;
-
-    @Value("${jwt.expiration-ms}")
-    private long expirationMs;
-
-    @Value("${jwt.issuer}")
-    private String issuer;
-
-    public String gerarToken(Usuario usuario) {
-        Instant agora = Instant.now();
-        Instant expiracao = agora.plusMillis(expirationMs);
-
-        return JWT.create()
-                .withSubject(usuario.getEmail())
-                .withClaim("userId", usuario.getId())
-                .withIssuer(issuer)
-                .withIssuedAt(Date.from(agora))
-                .withExpiresAt(Date.from(expiracao))
-                .sign(Algorithm.HMAC256(secret));
-    }
-
-    public DecodedJWT validarToken(String token) {
-        return JWT.require(Algorithm.HMAC256(secret))
-                .withIssuer(issuer)
-                .build()
-                .verify(token);
-    }
-
-    public long getExpirationMs() {
-        return expirationMs;
-    }
-}
-```
-
-### O que esse código faz?
-
-- `gerarToken(...)` cria o JWT;
-- `validarToken(...)` confere se o token é válido;
-- `subject` guarda o email;
-- `userId` guarda o id do usuário;
-- `expirationMs` define quando o token expira.
-
-### Onde colocar as configurações
-
-No `src/main/resources/application.properties`:
+Configuracao esperada em properties:
 
 ```properties
-jwt.secret=coloque-um-segredo-forte-aqui
-jwt.expiration-ms=86400000
-jwt.issuer=biblioteca-pessoal-api
+jwt.secret=${JWT_SECRET:exemplo_de_chave_secreta_muito_longa_e_segura_123456}
+jwt.expiration-ms=${JWT_EXPIRATION:86400000}
+jwt.issuer=${JWT_ISSUER:biblioteca-pessoal-api}
 ```
 
-> Dica: depois, o ideal é trocar isso por variável de ambiente.
+## 3) Carregar usuario para autenticacao (`CustomUserDetailsService`)
 
----
+- busca usuario por email no `UsuarioRepository`
+- se nao encontrar, lanca `UsernameNotFoundException`
+- retorna `UserDetails` com senha criptografada do banco
 
-### Passo 3 — criar o `UserDetailsService`
+Observacao importante:
 
-O Spring Security precisa saber como buscar o usuário pelo email.
+- usar `.roles("USER")` (o prefixo `ROLE_` ja e aplicado internamente)
 
-#### `CustomUserDetailsService`
+## 4) Filtro JWT (`JwtAuthFilter`)
 
-```java
-package com.felipesmz.bibliotecapessoal.security;
+Papel do filtro:
 
-import com.felipesmz.bibliotecapessoal.model.Usuario;
-import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
+- ignorar rotas publicas (`/auth/login` e `POST /usuarios`)
+- ler header `Authorization`
+- validar prefixo `Bearer `
+- validar token no `JwtService`
+- carregar usuario e setar autenticacao no `SecurityContextHolder`
 
-@Service
-public class CustomUserDetailsService implements UserDetailsService {
+Tratamento de erro atual:
 
-    private final UsuarioRepository usuarioRepository;
+- token invalido/expirado -> `401` com JSON
+- token valido, mas usuario nao encontrado -> `401` com JSON
 
-    public CustomUserDetailsService(UsuarioRepository usuarioRepository) {
-        this.usuarioRepository = usuarioRepository;
-    }
+## 5) Configuracao de seguranca (`SecurityConfig`)
 
-    @Override
-    public UserDetails loadUserByUsername(String email) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
+Regras principais no projeto:
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(usuario.getEmail())
-                .password(usuario.getSenha())
-                .authorities("ROLE_USER")
-                .build();
-    }
-}
-```
+- `SessionCreationPolicy.STATELESS`
+- `POST /auth/login` e `POST /usuarios` sao publicos
+- demais rotas exigem autenticacao
+- `AuthenticationProvider` com `DaoAuthenticationProvider`
+- `PasswordEncoder` com `BCryptPasswordEncoder`
+- `JwtAuthFilter` antes de `UsernamePasswordAuthenticationFilter`
+- sem autenticacao valida -> resposta `401`
 
-### Por que usar email aqui?
+## 6) Login (`AuthService` + `AuthController`)
 
-Porque no meu projeto o email é único e é o dado mais natural para login.
+`AuthService.login(...)`:
 
----
+1. autentica email/senha com `authenticationManager.authenticate(...)`
+2. busca usuario no banco
+3. gera token no `JwtService`
+4. retorna `LoginResponse(token, "Bearer")`
 
-### Passo 4 — criar o filtro JWT
+`AuthController` expoe:
 
-O filtro lê o header `Authorization`, valida o token e coloca o usuário no contexto do Spring.
+- `POST /auth/login`
 
-#### `JwtAuthFilter`
+## Como testar rapido
 
-```java
-package com.felipesmz.bibliotecapessoal.security;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.util.StringUtils;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-
-public class JwtAuthFilter extends OncePerRequestFilter {
-
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
-
-    public JwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService) {
-        this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
-    }
-
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-
-        String header = request.getHeader("Authorization");
-
-        if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(7);
-        String email = jwtService.validarToken(token).getSubject();
-
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
-
-        filterChain.doFilter(request, response);
-    }
-}
-```
-
-### O que este filtro faz?
-
-1. pega o token do header;
-2. valida o token;
-3. pega o email do token;
-4. busca o usuário no banco;
-5. marca a requisição como autenticada.
-
----
-
-### Passo 5 — configurar o `SecurityConfig`
-
-Aqui eu digo quais rotas são públicas e quais precisam de token.
-
-#### `SecurityConfig` em `com.felipesmz.bibliotecapessoal.config`
-
-```java
-package com.felipesmz.bibliotecapessoal.security;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-@Configuration
-public class SecurityConfig {
-
-    private final JwtService jwtService;
-    private final CustomUserDetailsService userDetailsService;
-
-    public SecurityConfig(JwtService jwtService, CustomUserDetailsService userDetailsService) {
-        this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtService, userDetailsService);
-
-        http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/usuarios").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
-}
-```
-
-### O que essa configuração significa?
-
-- `/auth/login` fica público;
-- cadastro de usuário pode ficar público;
-- todo o resto exige token;
-- a aplicação não usa sessão, então é stateless.
-
----
-
-### Passo 6 — criar o `AuthService`
-
-Esse service faz o login e gera o token.
-
-#### `AuthService`
-
-```java
-package com.felipesmz.bibliotecapessoal.auth.service;
-
-import com.felipesmz.bibliotecapessoal.auth.dto.LoginRequest;
-import com.felipesmz.bibliotecapessoal.auth.dto.LoginResponse;
-import com.felipesmz.bibliotecapessoal.model.Usuario;
-import com.felipesmz.bibliotecapessoal.repository.UsuarioRepository;
-import com.felipesmz.bibliotecapessoal.security.JwtService;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.stereotype.Service;
-
-@Service
-public class AuthService {
-
-    private final AuthenticationManager authenticationManager;
-    private final UsuarioRepository usuarioRepository;
-    private final JwtService jwtService;
-
-    public AuthService(AuthenticationManager authenticationManager,
-                       UsuarioRepository usuarioRepository,
-                       JwtService jwtService) {
-        this.authenticationManager = authenticationManager;
-        this.usuarioRepository = usuarioRepository;
-        this.jwtService = jwtService;
-    }
-
-    public LoginResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSenha())
-        );
-
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        String token = jwtService.gerarToken(usuario);
-        return new LoginResponse(token, "Bearer");
-    }
-}
-```
-
-### Fluxo do login
-
-- recebo email e senha;
-- o Spring valida as credenciais;
-- se estiver tudo certo, busco o usuário;
-- gero o token;
-- devolvo a resposta.
-
----
-
-### Passo 7 — criar o `AuthController`
-
-Esse controller expõe a rota de login.
-
-#### `AuthController`
-
-```java
-package com.felipesmz.bibliotecapessoal.auth.controller;
-
-import com.felipesmz.bibliotecapessoal.auth.dto.LoginRequest;
-import com.felipesmz.bibliotecapessoal.auth.dto.LoginResponse;
-import com.felipesmz.bibliotecapessoal.auth.service.AuthService;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-@RestController
-@RequestMapping("/auth")
-public class AuthController {
-
-    private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
-    }
-}
-```
-
----
-
-## 6. Como proteger as rotas de `usuario` e `livro`
-
-Aqui está o ponto principal: não basta só ter token. Eu preciso garantir que o usuário só veja o que é dele.
-
-### Regra simples
-
-Quando eu for buscar um livro ou usuário, eu não devo usar só o `id` da URL.
-
-Eu devo buscar assim:
-
-- `findByIdAndUsuarioId(...)`
-- `findByUsuarioId(...)`
-
-Isso evita que um usuário acesse dados de outro.
-
-### Exemplo para `LivroRepository`
-
-```java
-package com.felipesmz.bibliotecapessoal.repository;
-
-import com.felipesmz.bibliotecapessoal.model.Livro;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
-import java.util.Optional;
-
-public interface LivroRepository extends JpaRepository<Livro, Long> {
-
-    List<Livro> findByUsuarioId(Long usuarioId);
-
-    Optional<Livro> findByIdAndUsuarioId(Long id, Long usuarioId);
-}
-```
-
-### Como salvar um livro com dono
-
-No service de livro, eu pego o usuário autenticado e coloco no livro antes de salvar.
-
-O importante aqui é lembrar que, no meu modelo atual, o `Livro` tem:
-
-```java
-private Usuario usuario;
-```
-
-Então eu preciso fazer algo como:
-
-```java
-livro.setUsuario(usuarioLogado);
-```
-
-e não `setUsuarioId(...)`.
-
----
-
-## 7. Validação no DTO
-
-A validação vai no DTO, não na entidade.
-
-Exemplo:
-
-- `@NotBlank` para campos obrigatórios;
-- `@Email` para email;
-- `@Size` para tamanho mínimo.
-
-Isso deixa a API mais limpa e evita repetir validação em vários lugares.
-
----
-
-## 8. O que fazer no `UsuarioService`
-
-No meu projeto, o `UsuarioService` já faz criptografia da senha.
-
-Então eu preciso manter isso:
-
-- ao criar usuário, salvar senha com BCrypt;
-- ao atualizar senha, criptografar de novo;
-- nunca devolver senha na resposta.
-
-### Sobre a validação de email
-
-O método correto é algo parecido com isto:
-
-```java
-private void validarEmail(Long id, Usuario usuario) {
-    usuarioRepository.findByEmail(usuario.getEmail())
-            .ifPresent(usuarioExistente -> {
-                if (!usuarioExistente.getId().equals(id)) {
-                    throw new RuntimeException("E-mail já cadastrado");
-                }
-            });
-}
-```
-
-Se o email já existe e não pertence ao mesmo usuário, eu bloqueio.
-
----
-
-## 9. Como testar no Postman
-
-### 1. Cadastrar usuário
+## 1) Criar usuario
 
 ```http
 POST /usuarios
@@ -641,7 +154,7 @@ Content-Type: application/json
 }
 ```
 
-### 2. Fazer login
+## 2) Fazer login
 
 ```http
 POST /auth/login
@@ -662,65 +175,58 @@ Resposta esperada:
 }
 ```
 
-### 3. Chamar rota protegida
+## 3) Chamar rota protegida
 
 ```http
-GET /livros
-Authorization: Bearer SEU_TOKEN
+PUT /usuarios/1
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
 ```
 
-Se o token estiver certo, a API responde normalmente.
+## Erros comuns (e causa)
 
-Se estiver errado ou ausente, deve retornar `401`.
+- `401 Unauthorized`
+  - token ausente
+  - token expirado/invalido
+  - token de outro ambiente (secret diferente)
+  - usuario do token nao existe mais
 
----
+- `403 Forbidden`
+  - autenticado, mas sem permissao para acao
 
-## 10. Resumo bem curto do fluxo
+- `415 Unsupported Media Type`
+  - request enviada sem `Content-Type: application/json`
 
-1. cadastro do usuário;
-2. senha salva com BCrypt;
-3. login com email e senha;
-4. geração do JWT;
-5. envio do token nas próximas requisições;
-6. filtro valida o token;
-7. API identifica o usuário logado;
-8. serviços de livro e usuário usam o id do usuário autenticado para filtrar os dados.
+- erro de parser HTTP com caracteres estranhos
+  - normalmente chamada em `https://localhost:8080` sem SSL configurado
+  - use `http://localhost:8080`
 
----
+## Checklist de implementacao JWT
 
-## 11. O que eu preciso lembrar depois
+- [x] DTOs de login (`LoginRequest`, `LoginResponse`)
+- [x] `JwtService` para gerar/validar token
+- [x] `CustomUserDetailsService`
+- [x] `JwtAuthFilter`
+- [x] `SecurityConfig` stateless
+- [x] `AuthService`
+- [x] `AuthController`
 
-### Se eu esquecer, basta revisar esta ordem:
+## Proximo passo apos JWT
 
-- criar DTOs do login;
-- criar `JwtService`;
-- criar `CustomUserDetailsService`;
-- criar `JwtAuthFilter`;
-- ajustar `SecurityConfig`;
-- criar `AuthService`;
-- criar `AuthController`;
-- proteger `LivroRepository` e `UsuarioRepository` com filtro por usuário;
-- testar com Postman.
+JWT esta pronto para autenticar usuario.
 
----
+Ainda falta concluir o modulo de livros com isolamento por usuario:
 
-## 12. O que eu simplifiquei neste manual
+- `GET /livros`
+- `POST /livros`
+- `GET /livros/{id}`
+- `PUT /livros/{id}`
+- `PATCH /livros/{id}/status`
+- `DELETE /livros/{id}`
+- `GET /livros/estatisticas`
 
-Para ficar fácil de entender, eu evitei:
+## Regra para nao esquecer
 
-- arquitetura exageradamente grande;
-- muitos pacotes desnecessários;
-- uso de Lombok;
-- exemplos avançados demais;
-- conceitos que ainda não ajudam na primeira implementação.
+Quando bater duvida, relembre esta frase:
 
-Esse documento é para me fazer lembrar **como implementar**, não para virar uma teoria enorme.
-
----
-
-## 13. Observação final
-
-Este guia é para eu consultar no futuro quando eu já tiver o básico de Java e quiser relembrar o passo a passo do JWT.
-
-Se eu seguir a ordem desta documentação, consigo implementar a autenticação sem me perder.
-
+> Login autentica credencial, JWT identifica o usuario nas proximas requisicoes.
