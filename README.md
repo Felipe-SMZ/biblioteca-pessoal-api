@@ -1,228 +1,198 @@
-# Biblioteca Pessoal API
+# Biblioteca Pessoal — API
 
-API REST para gerenciamento de biblioteca pessoal com autenticacao JWT.
+API REST para gerenciar uma biblioteca pessoal com autenticação JWT.
 
-## Status do projeto
+Este repositório contém a implementação do desafio descrito em `DESAFIO.md`.
 
-- `usuarios` e `auth/login` implementados
-- autenticacao JWT funcionando
-- regras de livro ainda em desenvolvimento
+Principais objetivos implementados:
 
-## Objetivo
+- Cadastro e autenticação de usuários (JWT)
+- Criação e gerenciamento de livros por usuário
+- Regras de negócio básicas aplicadas ao módulo de livros
 
-Permitir que cada usuario:
+---
 
-- crie sua conta
-- faca login
-- use token JWT nas rotas protegidas
-- (proximo passo) gerencie apenas os proprios livros
+## Sumário
+
+- Visão geral e stack
+- Como rodar localmente
+- Variáveis de ambiente e configuração
+- Endpoints e exemplos de uso
+- Observações sobre segurança e melhorias recomendadas
+
+---
 
 ## Stack
 
-- Java 21
-- Spring Boot 4.0.5
+- Java 17+
+- Spring Boot 3.x
 - Spring Web
 - Spring Data JPA
 - Spring Security
 - MySQL
-- Maven
-- Java JWT (`com.auth0:java-jwt`)
+- Maven (com wrapper `mvnw`)
 
-## Estrutura principal
+---
 
-```text
-src/main/java/com/felipesmz/bibliotecapessoal
-├── auth
-│   ├── controller
-│   ├── dto
-│   └── service
-├── config
-├── controller
-├── dto
-├── mapper
-├── model
-├── repository
-├── security
-└── service
-```
+## Executando localmente
 
-## Funcionalidades atuais
+Pré-requisitos:
 
-- cadastro de usuario com validacoes de DTO
-- senha criptografada com `PasswordEncoder`
-- login com email e senha
-- geracao de token JWT no login
-- validacao de token por filtro (`JwtAuthFilter`)
-- rotas publicas:
-  - `POST /auth/login`
-  - `POST /usuarios`
-- demais rotas exigem token
+- Java 17+
+- MySQL (ou outra fonte compatível configurada em `application.properties`)
+- Maven (opcional: use o wrapper `mvnw.cmd` no Windows)
 
-## Requisitos locais
-
-- JDK 21+
-- Maven (ou usar `mvnw`)
-- MySQL rodando
-
-## Configuracao de ambiente
-
-Use o arquivo `src/main/resources/application-example.properties` como referencia.
-
-As configuracoes suportam variaveis de ambiente com valor padrao.
-
-### Variaveis de banco
-
-- `DB_HOST` (padrao: `localhost`)
-- `DB_PORT` (padrao: `3306`)
-- `DB_NAME` (padrao: `biblioteca_db`)
-- `DB_USERNAME` (padrao: `root`)
-- `DB_PASSWORD` (padrao definido no seu `application.properties` local)
-
-### Variaveis de JWT
-
-- `JWT_SECRET`
-- `JWT_EXPIRATION` (em ms, ex: `86400000`)
-- `JWT_ISSUER`
-
-## Como executar o projeto
+Passos rápidos (Windows PowerShell):
 
 ```powershell
-./mvnw.cmd clean compile
-./mvnw.cmd spring-boot:run
+# Compila
+.\mvnw.cmd clean package -DskipTests
+
+# Executa a aplicação
+.\mvnw.cmd spring-boot:run
 ```
 
-Aplicacao sobe em `http://localhost:8080`.
+A aplicação sobe por padrão em: http://localhost:8080
 
-## Fluxo de autenticacao (JWT)
+Se preferir executar o JAR gerado:
 
-1. Cliente chama `POST /auth/login`
-2. API valida credenciais
-3. API retorna token
-4. Cliente envia token nas rotas protegidas:
-
-```http
-Authorization: Bearer SEU_TOKEN_AQUI
+```powershell
+java -jar target\biblioteca-pessoal-0.0.1-SNAPSHOT.jar
 ```
 
-Se o token estiver invalido/expirado, a API retorna `401`.
+---
 
-## Endpoints atuais
+## Configuração (variáveis / application.properties)
 
-### Publicos
+Use `src/main/resources/application-example.properties` como referência. As principais propriedades:
 
-| Metodo | Rota | Descricao |
-|---|---|---|
-| POST | `/usuarios` | Cadastrar usuario |
-| POST | `/auth/login` | Login e retorno do token |
+- spring.datasource.url (ex.: jdbc:mysql://localhost:3306/biblioteca_db)
+- spring.datasource.username
+- spring.datasource.password
 
-### Protegidos
+- jwt.secret (chave HMAC — mínimo 32 caracteres)
+- jwt.expiration-ms (tempo em ms, ex: 86400000 = 24h)
+- jwt.issuer
 
-| Metodo | Rota | Descricao |
-|---|---|---|
-| GET | `/usuarios/{id}` | Buscar usuario por id |
-| PUT | `/usuarios/{id}` | Atualizar usuario |
-| DELETE | `/usuarios/{id}` | Remover usuario |
+Você pode usar variáveis de ambiente para sobrescrever os valores padrão (veja `application-example.properties`).
 
-## Exemplos de requisicao
+---
 
-### 1) Cadastrar usuario
+## Endpoints principais
 
-```http
-POST /usuarios
-Content-Type: application/json
+Autenticação / Usuário (públicos):
+
+- POST /usuarios — cadastrar usuário
+- POST /auth/login — login, retorna token JWT
+
+Regras: as demais rotas exigem Header `Authorization: Bearer <token>`
+
+Livros (protegido):
+
+- GET /livros — listar livros do usuário autenticado
+- POST /livros — criar novo livro (pertence ao usuário autenticado)
+- GET /livros/{id} — obter livro (somente se pertencer ao usuário)
+- PUT /livros/{id} — atualizar dados do livro (somente se pertencer ao usuário)
+- PATCH /livros/{id}/status — atualizar páginas lidas / status
+- PATCH /livros/{id}/avaliacao — avaliar livro concluído
+- DELETE /livros/{id} — remover livro (somente se pertencer ao usuário)
+- GET /livros/estatisticas — estatísticas do usuário
+
+Consulte os DTOs em `src/main/java/com/felipesmz/bibliotecapessoal/dto` para os formatos esperados.
+
+---
+
+## Exemplos (curl)
+
+# 1) Cadastrar usuário
+
+```bash
+curl -X POST http://localhost:8080/usuarios \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Fulano","email":"fulano@example.com","senha":"minhaSenha"}'
 ```
+
+# 2) Login (retorna token)
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"fulano@example.com","senha":"minhaSenha"}'
+```
+
+# 3) Usar token nas rotas protegidas
+
+```bash
+curl -H "Authorization: Bearer SEU_TOKEN_AQUI" http://localhost:8080/livros
+```
+
+Exemplos de payloads para livros (ver DTOs para validações):
+
+POST /livros
 
 ```json
 {
-  "nome": "Felipe Souza",
-  "email": "felipe@email.com",
-  "senha": "123456"
+  "titulo": "O Senhor dos Anéis",
+  "autor": "J.R.R. Tolkien",
+  "genero": "Fantasia",
+  "totalPaginas": 1178
 }
 ```
 
-### 2) Login
-
-```http
-POST /auth/login
-Content-Type: application/json
-```
+PATCH /livros/{id}/status
 
 ```json
 {
-  "email": "felipe@email.com",
-  "senha": "123456"
+  "paginasLidas": 200
 }
 ```
 
-Resposta esperada:
+PATCH /livros/{id}/avaliacao
 
 ```json
 {
-  "token": "...",
-  "tipo": "Bearer"
+  "avaliacao": 5
 }
 ```
 
-### 3) Atualizar usuario (rota protegida)
+---
 
-```http
-PUT /usuarios/1
-Authorization: Bearer SEU_TOKEN_AQUI
-Content-Type: application/json
-```
+## Segurança e observações importantes (análise)
 
-```json
-{
-  "nome": "Felipe Atualizado",
-  "email": "felipe@email.com",
-  "senha": "12345678"
-}
-```
+Resumo das verificações relevantes feitas no código:
 
-## Erros comuns
+- O `LivroController` obtém o email do usuário autenticado via `SecurityContextHolder` e resolve o `usuarioId` usando `UsuarioRepository.findByEmail(email)`.
+- Todos os métodos do `LivroService` usam queries que filtram por `usuarioId` (ex.: `findByIdAndUsuarioId`, `findAllByUsuarioId`, `countByUsuarioIdAndStatus`). Isso impede que um usuário acesse livros de outro, desde que `usuarioId` passado seja o do usuário autenticado.
 
-- `401 Unauthorized`: token ausente, invalido, expirado ou usuario do token nao encontrado
-- `403 Forbidden`: regra de autorizacao negou acesso
-- `415 Unsupported Media Type`: request sem `Content-Type: application/json`
+Potenciais pontos de melhoria/risco identificados:
 
-## Proximas implementacoes (modulo de livros)
+1. Tratamento de exceções inconsistentes: algumas situações lançam `ResponseStatusException` (boas — retornam 4xx), outras usam `RuntimeException` com mensagens como "Livro não encontrado" ou "Usuário não encontrado". Isso causa 500 Internal Server Error. Recomenda-se padronizar para lançar `ResponseStatusException(HttpStatus.NOT_FOUND, "...")` ou criar exceções customizadas mapeadas pelo `@ControllerAdvice`.
 
-### API de livros
+2. `getUsuarioIdAutenticado()` assume que `SecurityContextHolder.getContext().getAuthentication()` e o `principal` não são nulos e que o principal é `UserDetails`. Em geral isso é verdade para requests autenticadas, mas uma verificação defensiva e mensagens claras (`401 Unauthorized`) melhoram a robustez.
 
-- [ ] Criar `LivroController`
-- [ ] Criar `LivroService`
-- [ ] Criar DTOs de entrada/saida de livro
-- [ ] Implementar endpoints:
-  - [ ] `GET /livros`
-  - [ ] `POST /livros`
-  - [ ] `GET /livros/{id}`
-  - [ ] `PUT /livros/{id}`
-  - [ ] `PATCH /livros/{id}/status`
-  - [ ] `DELETE /livros/{id}`
-  - [ ] `GET /livros/estatisticas`
+3. O `JwtAuthFilter` registra logs informativos. Evite logar o token em texto claro em produção.
 
-### Regras de negocio pendentes
+4. Validações de regras de negócio estão implementadas em grande parte (ex.: páginas lidas não podem exceder total; avaliação só para concluídos). Rever mensagens e códigos HTTP para consistência.
 
-- [ ] Usuario so pode acessar os proprios livros
-- [ ] `paginasLidas <= totalPaginas`
-- [ ] Status so pode avancar (nao retrocede)
-- [ ] `avaliacao` so quando status for `CONCLUIDO`
-- [ ] Ao concluir livro, ajustar `paginasLidas = totalPaginas`
+5. Recomendado remover exposição acidental de dados sensíveis em logs (senhas não são expostas nas respostas — DTOs de saída não incluem senha).
 
-### Qualidade tecnica recomendada
+---
 
-- [ ] `@ControllerAdvice` para padronizar erros
-- [ ] Testes unitarios para service
-- [ ] Testes de integracao para endpoints
-- [ ] Colecao do Insomnia/Postman versionada
+## Melhorias sugeridas (próximos passos)
 
-## Documentos do repositorio
+- Padronizar exceções: criar `NotFoundException`, `AccessDeniedException`, `BadRequestException` e mapear no `GlobalExceptionHandler` para retornar JSON consistente.
+- Melhorar `getUsuarioIdAutenticado()` para lançar `ResponseStatusException(HttpStatus.UNAUTHORIZED)` quando o principal não estiver presente.
+- Adicionar testes unitários para `LivroService` cobrindo regras de negócio (paginas lidas, status, avaliação).
+- Adicionar testes de integração (com banco H2 ou Testcontainers) para endpoints críticos.
+- Considerar usar claim `userId` do token (já presente) para evitar uma consulta adicional ao banco ao resolver o usuário autenticado.
 
-- `DESAFIO.md`: escopo original do desafio
-- `JWT.md`: guia detalhado de implementacao JWT
-- `src/main/resources/application-example.properties`: referencia de configuracao local
+---
 
-## Observacao
+## Arquivos úteis
 
-Este README descreve o estado atual do projeto e o proximo roadmap.
-Quando o modulo de livros estiver concluido, atualize este documento para refletir os endpoints e regras finais.
+- `DESAFIO.md` — escopo do desafio
+- `src/main/resources/application-example.properties` — exemplo de configuração
+
+---
+
+Se quiser, posso abrir um PR sugerindo mudanças pequenas e seguras (ex.: padronizar exceções e ajustar `getUsuarioIdAutenticado`) — diga quais pontos você prefere que eu altere automaticamente.
